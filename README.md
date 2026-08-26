@@ -16,8 +16,8 @@ Both snapshots currently use a two-layer model with a 64-dimensional embedding, 
 Python 3.10 or newer is recommended. PyTorch installation can differ for CPU, CUDA, and other accelerators; use the command from the [PyTorch installation selector](https://pytorch.org/get-started/locally/) if the simple installation below does not match your PC.
 
 ```bash
-git clone <your-private-repository-url>
-cd Transformer
+git clone https://github.com/jasonnn404/transformer-study.git
+cd transformer-study
 python -m venv .venv
 ```
 
@@ -76,4 +76,3 @@ python -m TinyGPTv2.test_tokenizer
 - Random seeds are not fixed, so runs are not exactly reproducible yet.
 - Checkpoints are small enough for this study repository, but larger future models should use release assets, Git LFS, or external artifact storage.
 - There is no automated test suite yet; the tokenizer comparison is currently an executable study script.
-
