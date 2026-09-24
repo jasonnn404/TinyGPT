@@ -28,3 +28,6 @@ wandb/
 *.ckpt
 *.safetensors
 
+# Checkpoints accidentally written from the repository root
+/best_model.pt
+/latest_checkpoint.pt

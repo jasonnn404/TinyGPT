@@ -13,7 +13,7 @@ def generate(
 ):
 
     device = next(model.parameters()).device
-    
+
     idx = torch.tensor(
         [tokenizer.encode(prompt)],
         dtype=torch.long,

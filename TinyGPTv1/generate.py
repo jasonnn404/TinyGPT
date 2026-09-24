@@ -1,9 +1,11 @@
 import torch
 import torch.nn.functional as F
 
-from generation import generate
-from model import TinyGPT
-from bpe_tokenizer import BPETokenizer
+from .generation import generate
+from .model import TinyGPT
+from .tokenizer import CharTokenizer
+
+from pathlib import Path
 
 
 if torch.cuda.is_available():
@@ -13,17 +15,16 @@ elif torch.backends.mps.is_available():
 else:
     device = "cpu"
 
+checkpoint_path = Path(__file__).parent / "best_model.pt"
+
 checkpoint = torch.load(
-    "best_model.pt"
+    checkpoint_path,
+    map_location=device
 )
 
 
-tokenizer = BPETokenizer(
-    vocab_size=checkpoint["tokenizer_vocab_size"]
-)
-
-tokenizer.load_merges(
-    checkpoint["merges"]
+tokenizer = CharTokenizer(
+    characters=checkpoint["characters"]
 )
 
 
@@ -47,7 +48,7 @@ generated_text = generate(
     tokenizer=tokenizer,
     prompt="hello",
     block_size=block_size,
-    max_new_tokens=100,
+    max_new_tokens=194,
     temperature=0.8,
     k=5
 )

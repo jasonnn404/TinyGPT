@@ -1,13 +1,13 @@
-# Transformer Study Journey
+# TinyGPT
 
-A from-scratch study project for learning how GPT-style decoder-only transformers work. The repository keeps each learning milestone separate so the implementation can evolve without hiding the earlier steps.
+A from-scratch GPT-style decoder-only transformer project. The current implementation includes byte-pair encoding, KV-cache generation, supervised fine-tuning, and RLHF experiments, while the original character-level implementation is retained as `TinyGPTv1`.
 
 ## Project snapshots
 
 | Folder | Tokenizer | Focus |
 | --- | --- | --- |
-| `TinyGPT/` | Character-level | Causal self-attention, multi-head attention, transformer blocks, training, checkpointing, and generation |
-| `TinyGPTv2/` | Byte-pair encoding (BPE) | Building and persisting a tokenizer, then training the same small language model with compressed token sequences |
+| `TinyGPTv1/` | Character-level | The original implementation of causal self-attention, multi-head attention, transformer blocks, training, checkpointing, and generation |
+| `TinyGPT/` | Byte-pair encoding (BPE) | The current implementation, including BPE tokenization, KV-cache generation, supervised fine-tuning, and RLHF experiments |
 
 Both snapshots currently use a two-layer model with a 64-dimensional embedding, four attention heads, and a context length of 64. Small trained checkpoints are included so generation can be tried immediately. The training corpus in both folders is the same text.
 
@@ -16,8 +16,8 @@ Both snapshots currently use a two-layer model with a 64-dimensional embedding, 
 Python 3.10 or newer is recommended. PyTorch installation can differ for CPU, CUDA, and other accelerators; use the command from the [PyTorch installation selector](https://pytorch.org/get-started/locally/) if the simple installation below does not match your PC.
 
 ```bash
-git clone https://github.com/jasonnn404/transformer-study.git
-cd transformer-study
+git clone https://github.com/jasonnn404/TinyGPT.git
+cd TinyGPT
 python -m venv .venv
 ```
 
@@ -37,22 +37,20 @@ python -m pip install -r requirements.txt
 
 ## Run the models
 
-The scripts use paths relative to their snapshot folders, so enter the relevant folder first.
+Run the scripts as modules from the repository root.
 
 Character model:
 
 ```bash
-cd TinyGPT
-python generate.py
-python train.py
+python -m TinyGPTv1.generate
+python -m TinyGPTv1.train
 ```
 
 BPE model:
 
 ```bash
-cd TinyGPTv2
-python generate.py
-python train.py
+python -m TinyGPT.generate
+python -m TinyGPT.train
 ```
 
 Training overwrites `best_model.pt` when validation loss improves and periodically writes `latest_checkpoint.pt`. Set `resume_training = True` in the relevant `train.py` to resume from the latest checkpoint. Before a new experiment, copy any checkpoint you want to preserve or record its Git commit.
@@ -60,7 +58,7 @@ Training overwrites `best_model.pt` when validation loss improves and periodical
 To compare character and BPE token counts, run this from the repository root:
 
 ```bash
-python -m TinyGPTv2.test_tokenizer
+python -m TinyGPT.tests.test_tokenizer
 ```
 
 ## Documenting experiments
@@ -75,4 +73,4 @@ python -m TinyGPTv2.test_tokenizer
 - Training configuration is edited directly in the scripts rather than passed as command-line arguments.
 - Random seeds are not fixed, so runs are not exactly reproducible yet.
 - Checkpoints are small enough for this study repository, but larger future models should use release assets, Git LFS, or external artifact storage.
-- There is no automated test suite yet; the tokenizer comparison is currently an executable study script.
+- The tests are still primarily executable study scripts rather than a fully isolated automated test suite.

@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from TinyGPT.tokenizer import CharTokenizer
-from TinyGPTv2.bpe_tokenizer import BPETokenizer
+from TinyGPT.bpe_tokenizer import BPETokenizer
+from TinyGPTv1.tokenizer import CharTokenizer
 
-data_path = Path(__file__).parent / "data.txt"
+data_path = Path(__file__).parent.parent / "data.txt"
 
 with open(data_path, "r") as f:
-    text = f.read()
+    text = f.read(10_000)
 
 # Character tokenizer
 char_tokenizer = CharTokenizer(text=text)

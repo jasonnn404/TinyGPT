@@ -1,88 +1,47 @@
 import torch
 import torch.nn.functional as F
+from pathlib import Path
 
-from model import TinyGPT
-from bpe_tokenizer import BPETokenizer
-from data import TextData
-
-
-# -------------------------
-# Training configuration
-# -------------------------
-
-resume_training = False
-
-batch_size = 4
-block_size = 64
-
-max_steps = 10
-eval_interval = 5
-eval_iters = 20
-save_interval = 1000
-
-learning_rate = 0.001
-
-bpe_vocab_size = 500
+from .model import TinyGPT
+from .tokenizer import CharTokenizer
+from .data import TextData
 
 
 # -------------------------
 # Load text
 # -------------------------
 
-with open("data.txt", "r") as f:
+project_dir = Path(__file__).parent
+data_path = project_dir / "data.txt"
+latest_checkpoint_path = project_dir / "latest_checkpoint.pt"
+best_model_path = project_dir / "best_model.pt"
+
+with open(data_path, "r") as f:
     text = f.read()
-
-
-# -------------------------
-# Load checkpoint
-# -------------------------
-
-checkpoint = None
-
-if resume_training:
-    checkpoint = torch.load(
-        "latest_checkpoint.pt"
-    )
 
 
 # -------------------------
 # Tokenizer
 # -------------------------
 
-if resume_training:
-    tokenizer = BPETokenizer(
-        vocab_size=checkpoint["tokenizer_vocab_size"]
-    )
-
-    tokenizer.load_merges(
-        checkpoint["merges"]
-    )
-
-else:
-    tokenizer = BPETokenizer(
-        vocab_size=bpe_vocab_size
-    )
-
-    tokenizer.train(text)
+tokenizer = CharTokenizer(text=text)
 
 
 # -------------------------
-# Model configuration
+# Training configuration
 # -------------------------
 
-if resume_training:
-    model_config = checkpoint["model_config"]
+batch_size = 4
+block_size = 64
 
-    block_size = model_config["max_sequence_length"]
+max_steps = 10000
 
-else:
-    model_config = {
-        "vocab_size": tokenizer.vocab_size,
-        "max_sequence_length": block_size,
-        "embedding_dimension": 64,
-        "num_heads": 4,
-        "num_layers": 2
-    }
+eval_interval = 500
+eval_iters = 20
+
+save_interval = 1000
+
+learning_rate = 0.001
 
 
 # -------------------------
@@ -95,6 +54,19 @@ dataset = TextData(
     batch_size=batch_size,
     block_size=block_size
 )
+
+
+# -------------------------
+# Model configuration
+# -------------------------
+
+model_config = {
+    "vocab_size": len(tokenizer.characters),
+    "max_sequence_length": block_size,
+    "embedding_dimension": 64,
+    "num_heads": 4,
+    "num_layers": 2
+}
 
 
 # -------------------------
@@ -123,32 +95,6 @@ optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=learning_rate
 )
-
-
-# -------------------------
-# Resume training state
-# -------------------------
-
-start_step = 0
-best_val_loss = float("inf")
-
-if resume_training:
-    model.load_state_dict(
-        checkpoint["model_state_dict"]
-    )
-
-    optimizer.load_state_dict(
-        checkpoint["optimizer_state_dict"]
-    )
-
-    start_step = checkpoint["step"] + 1
-    best_val_loss = checkpoint["best_val_loss"]
-
-
-    for param_group in optimizer.param_groups:
-        param_group["lr"] = learning_rate
-
-    print("Resuming from step:", start_step)
 
 
 # -------------------------
@@ -195,6 +141,41 @@ def estimate_loss():
 
 
 # -------------------------
+# Resume training
+# -------------------------
+
+resume_training = False
+
+start_step = 0
+best_val_loss = float("inf")
+
+
+if resume_training:
+
+    checkpoint = torch.load(
+        latest_checkpoint_path,
+        map_location="cpu"
+    )
+
+    model.load_state_dict(
+        checkpoint["model_state_dict"]
+    )
+
+    optimizer.load_state_dict(
+        checkpoint["optimizer_state_dict"]
+    )
+
+    start_step = checkpoint["step"] + 1
+
+    best_val_loss = checkpoint["best_val_loss"]
+
+    print(
+        "Resuming from step:",
+        start_step
+    )
+
+
+# -------------------------
 # Training loop
 # -------------------------
 
@@ -222,10 +203,9 @@ for step in range(start_step, max_steps):
                 "step": step,
                 "model_state_dict": model.state_dict(),
                 "best_val_loss": best_val_loss,
-                "tokenizer_vocab_size": tokenizer.vocab_size,
-                "merges": tokenizer.merges,
+                "characters": tokenizer.characters,
                 "model_config": model_config,
-            }, "best_model.pt")
+            }, best_model_path)
 
             print("saved best model")
 
@@ -238,12 +218,11 @@ for step in range(start_step, max_steps):
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "best_val_loss": best_val_loss,
-            "tokenizer_vocab_size": tokenizer.vocab_size,
-            "merges": tokenizer.merges,
+            "characters": tokenizer.characters,
             "model_config": model_config,
             "batch_size": batch_size,
             "learning_rate": learning_rate,
-        }, "latest_checkpoint.pt")
+        }, latest_checkpoint_path)
 
 
     # Get training batch
@@ -260,13 +239,17 @@ for step in range(start_step, max_steps):
     logits = logits.reshape(B * T, C)
     y = y.reshape(B * T)
 
+
     # Loss
     loss = F.cross_entropy(
         logits,
         y
     )
 
+
     # Backpropagation
     optimizer.zero_grad()
+
     loss.backward()
+
     optimizer.step()

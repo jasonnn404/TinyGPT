@@ -1,63 +1,87 @@
 import torch
-import torch.nn.functional as F
+from .kv_cache import KVCache
 
 
-def generate(
-    model,
-    tokenizer,
-    prompt,
-    block_size,
-    max_new_tokens=100,
-    temperature=0.8,
-    k=5
-):
+@torch.no_grad()
+def generate_greedy(model, input_ids, max_new_tokens):
+    generated = input_ids
 
-    device = next(model.parameters()).device
-    
-    idx = torch.tensor(
-        [tokenizer.encode(prompt)],
-        dtype=torch.long,
-        device=device
+    for _ in range(max_new_tokens):
+        logits = model(generated)
+
+        next_token = torch.argmax(
+            logits[:, -1, :],
+            dim=-1,
+            keepdim=True
+        )
+
+        generated = torch.cat(
+            [generated, next_token],
+            dim=1
+        )
+
+    return generated
+
+
+@torch.no_grad()
+def generate_greedy_cached(model, input_ids, max_new_tokens):
+    logits, kv_cache = model(
+        input_ids,
+        use_cache=True
     )
 
-    model.eval()
+    generated = input_ids
 
-    with torch.no_grad():
+    for i in range(max_new_tokens):
+        next_token = torch.argmax(
+            logits[:, -1, :],
+            dim=-1,
+            keepdim=True
+        )
 
-        for _ in range(max_new_tokens):
+        generated = torch.cat(
+            [generated, next_token],
+            dim=1
+        )
 
-            idx_cond = idx[:, -block_size:]
+        if i == max_new_tokens - 1:
+            break
 
-            logits = model(idx_cond)
+        logits, kv_cache = model(
+            next_token,
+            past_kv=kv_cache,
+            use_cache=True
+        )
 
-            next_token_logits = logits[:, -1, :]
+    return generated
 
-            topk_values, topk_indices = torch.topk(
-                next_token_logits,
-                k
-            )
 
-            topk_probs = F.softmax(
-                topk_values / temperature,
-                dim=-1
-            )
+@torch.no_grad()
+def generate_greedy_preallocated(model, input_ids, max_new_tokens):
+    batch_size = input_ids.shape[0]
+    attention = model.blocks[0].attention
 
-            choice = torch.multinomial(
-                topk_probs,
-                num_samples=1
-            )
-
-            next_token = torch.gather(
-                topk_indices,
-                dim=-1,
-                index=choice
-            )
-
-            idx = torch.cat(
-                [idx, next_token],
-                dim=1
-            )
-
-    return tokenizer.decode(
-        idx[0].tolist()
+    kv_cache = KVCache(
+        num_layers=len(model.blocks),
+        batch_size=batch_size,
+        num_heads=attention.num_heads,
+        max_sequence_length=model.position_embedding.num_embeddings,
+        head_dimension=attention.head_dimension,
+        device=input_ids.device,
+        dtype=next(model.parameters()).dtype
     )
+
+    logits = model(input_ids, kv_cache=kv_cache)
+    generated = input_ids
+
+    for i in range(max_new_tokens):
+
+        next_token = torch.argmax(logits[:, -1, :], dim=-1, keepdim=True)
+        generated = torch.cat([generated, next_token], dim=1)
+
+        if i == max_new_tokens - 1:
+            break
+
+        logits = model(next_token, kv_cache=kv_cache)
+
+    return generated

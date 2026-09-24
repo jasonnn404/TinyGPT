@@ -30,7 +30,7 @@ This is a running record of what I built, what I learned, and what I want to tes
 - Optimizer: AdamW
 - Learning rate: 0.001
 
-## 2026-08-26 — TinyGPT v2: byte-pair encoding
+## 2026-08-26 — TinyGPT: byte-pair encoding
 
 ### Built
 
@@ -65,4 +65,3 @@ This is a running record of what I built, what I learned, and what I want to tes
 - Add dropout and compare overfitting behavior.
 - Add command-line configuration so experiments do not require editing source files.
 - Track parameter count, tokens processed per second, and generated samples.
-

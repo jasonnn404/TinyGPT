@@ -1,10 +1,10 @@
 import torch
-import torch.nn.functional as F
 
-from generation import generate
-from model import TinyGPT
-from tokenizer import CharTokenizer
+from .generation import generate_greedy_cached
+from .model import TinyGPT
+from .bpe_tokenizer import BPETokenizer
 
+from pathlib import Path
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -13,13 +13,16 @@ elif torch.backends.mps.is_available():
 else:
     device = "cpu"
 
-checkpoint = torch.load(
-    "best_model.pt"
+checkpoint_path = Path(__file__).parent / "best_model.pt"
+checkpoint = torch.load(checkpoint_path, map_location=device)
+
+
+tokenizer = BPETokenizer(
+    vocab_size=checkpoint["tokenizer_vocab_size"]
 )
 
-
-tokenizer = CharTokenizer(
-    characters=checkpoint["characters"]
+tokenizer.load_merges(
+    checkpoint["merges"]
 )
 
 
@@ -36,16 +39,13 @@ model.eval()
 
 
 
-block_size = checkpoint["model_config"]["max_sequence_length"]
-
-generated_text = generate(
-    model=model,
-    tokenizer=tokenizer,
-    prompt="hello",
-    block_size=block_size,
-    max_new_tokens=100,
-    temperature=0.8,
-    k=5
+prompt_ids = tokenizer.encode("hello")
+input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
+max_new_tokens = min(
+    50,
+    checkpoint["model_config"]["max_sequence_length"] - len(prompt_ids),
 )
+generated_ids = generate_greedy_cached(model, input_ids, max_new_tokens)
+generated_text = tokenizer.decode(generated_ids[0].tolist())
 
 print(generated_text)

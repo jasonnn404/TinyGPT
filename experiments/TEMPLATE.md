@@ -3,7 +3,7 @@
 - Date:
 - Git commit:
 - Goal / hypothesis:
-- Snapshot: `TinyGPT` / `TinyGPTv2`
+- Snapshot: `TinyGPTv1` / `TinyGPT`
 - Device and PyTorch version:
 - Dataset:
 
@@ -39,4 +39,3 @@ Paste a representative generated sample here.
 - What happened?
 - Did the result support the hypothesis?
 - What should change in the next experiment?
-
